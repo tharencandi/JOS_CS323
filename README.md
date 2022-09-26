@@ -6,3 +6,4 @@ Every branch is one lab.
 ## Branches
 
 * [Lab 1](https://gitlab.epfl.ch/cs323/labs/-/tree/lab1)
+* [Lab 2](https://gitlab.epfl.ch/cs323/labs/-/tree/lab2)
