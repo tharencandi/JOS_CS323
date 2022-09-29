@@ -156,7 +156,7 @@ mem_init(void)
   // Your code goes here:
 
   //allocating
-  struct PageInfo* pages = (struct PageInfo*) boot_alloc(sizeof(struct PageInfo)* npages);
+  pages = (struct PageInfo*) boot_alloc(sizeof(struct PageInfo)* npages);
   //initialise entire array to 0
   int i = 0;
   for (; i < npages; i ++) {
@@ -307,7 +307,7 @@ page_alloc(int alloc_flags)
     memset(page_kva, (int) '\0', PGSIZE);
   }
   page_free_list = page->pp_link;
-  page->pp_link == NULL;
+  page->pp_link = NULL;
   
   // Fill this function in
   return page;
