@@ -78,7 +78,7 @@ static void check_page_installed_pgdir(void);
 // This function may ONLY be used during initialization,
 // before the page_free_list list has been set up.
 static void *
-boot_alloc(uint32_t n)
+boot_alloc(uint32_t n) // called by mem_init to set up initial kernel page directory.
 {
   static char *nextfree;        // virtual address of next byte of free memory
   char *result;
@@ -99,7 +99,17 @@ boot_alloc(uint32_t n)
   //
   // LAB 2: Your code here.
 
-  return NULL;
+  //we have to store next free someone to update it..
+
+  result = nextfree; // next free before we allocate
+  //If n>0, allocates enough pages of contiguous physical memory to hold 'n'bytes
+  // else return nextfree without allocating.
+  if (n > 0) {
+    
+    nextfree = ROUNDUP(nextfree + n, PGSIZE);
+  } 
+ 
+  return result;
 }
 
 // Set up a two-level page table:
@@ -145,8 +155,17 @@ mem_init(void)
   // to initialize all fields of each struct PageInfo to 0.
   // Your code goes here:
 
+  //allocating
+  struct PageInfo* pages = (struct PageInfo*) boot_alloc(sizeof(struct PageInfo)* npages);
+  //initialise entire array to 0
+  int i = 0;
+  for (; i < npages; i ++) {
+    pages[i].pp_link = NULL;
+    pages[i].pp_ref = 0;
+  }
 
-  //////////////////////////////////////////////////////////////////////
+
+  //////////////////////  ////////////////////////////////////////////////
   // Now that we've allocated the initial kernel data structures, we set
   // up the list of free physical pages. Once we've done so, all further
   // memory management will go through the page_* functions. In
@@ -248,10 +267,19 @@ page_init(void)
   // NB: DO NOT actually touch the physical memory corresponding to
   // free pages!
   size_t i;
+  uint32_t ext_mem_free_pa = (uint32_t) PADDR((char * ) boot_alloc(0)); 
+  
   for (i = 0; i < npages; i++) {
     pages[i].pp_ref = 0;
+    uint32_t pa =  page2pa(&pages[i]);
     pages[i].pp_link = page_free_list;
-    page_free_list = &pages[i];
+
+    // free sp update next free page
+    if ( !(i == 0 || ( pa >= IOPHYSMEM && pa < ext_mem_free_pa))) {
+       page_free_list = &pages[i];
+
+    } 
+  
   }
 }
 
@@ -269,9 +297,20 @@ page_init(void)
 // Hint: use page2kva and memset
 struct PageInfo *
 page_alloc(int alloc_flags)
-{
+{ 
+  if (page_free_list == NULL)
+    return NULL;
+  
+  struct PageInfo * page = page_free_list;
+  char* page_kva = (char*) page2kva(page);
+  if (alloc_flags && ALLOC_ZERO) {
+    memset(page_kva, (int) '\0', PGSIZE);
+  }
+  page_free_list = page->pp_link;
+  page->pp_link == NULL;
+  
   // Fill this function in
-  return NULL;
+  return page;
 }
 
 //
