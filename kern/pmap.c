@@ -108,7 +108,10 @@ boot_alloc(uint32_t n) // called by mem_init to set up initial kernel page direc
     
     nextfree = ROUNDUP(nextfree + n, PGSIZE);
   } 
- 
+  
+  if (nextfree > KERNTOP)
+    panic("no more memory.");
+    
   return result;
 }
 
@@ -277,7 +280,6 @@ page_init(void)
     // free sp update next free page
     if ( !(i == 0 || ( pa >= IOPHYSMEM && pa < ext_mem_free_pa))) {
        page_free_list = &pages[i];
-
     } 
   
   }
@@ -298,8 +300,10 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 { 
-  if (page_free_list == NULL)
+  if (page_free_list == NULL) {
     return NULL;
+  }
+    
   
   struct PageInfo * page = page_free_list;
   char* page_kva = (char*) page2kva(page);
@@ -308,7 +312,6 @@ page_alloc(int alloc_flags)
   }
   page_free_list = page->pp_link;
   page->pp_link = NULL;
-  
   // Fill this function in
   return page;
 }
@@ -329,7 +332,8 @@ page_free(struct PageInfo *pp)
     panic("pp link is not null.\n");
   
   pp->pp_link = page_free_list;
-  page_free_list == pp;
+  page_free_list = pp;
+
 }
 
 //
