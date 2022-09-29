@@ -131,7 +131,7 @@ mem_init(void)
   i386_detect_memory();
 
   // Remove this line when you're ready to test this function.
-  panic("mem_init: This function is not finished\n");
+  //panic("mem_init: This function is not finished\n");
 
   //////////////////////////////////////////////////////////////////////
   // create initial page directory.
@@ -323,6 +323,13 @@ page_free(struct PageInfo *pp)
   // Fill this function in
   // Hint: You may want to panic if pp->pp_ref is nonzero or
   // pp->pp_link is not NULL.
+  if (pp->pp_ref != 0)
+    panic("pp_ref for page is non zero.\n");
+  else if (pp->pp_link != NULL)
+    panic("pp link is not null.\n");
+  
+  pp->pp_link = page_free_list;
+  page_free_list == pp;
 }
 
 //
