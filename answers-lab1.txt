@@ -1,0 +1,40 @@
+Exercise 3:
+1. At what point does the processor start executing 32-bit code? What exactly causes the switch from 16- to 32-bit mode?
+We setting the flag first with this code:
+movl 	%cr0, %eax # flag register wird in acc geladen
+orl	%CRO_PE_ON, %eax # protected mode flag wird mittels bitwise OR gesetzt
+movl	%eax, %cr0
+
+But the actual switch happens with the far jump:
+ljmp    $PROT_MODE_CSEG, $protcseg
+
+2. What is the last instruction of the boot loader executed, and what is the first instruction of the kernel it just loaded?
+last instruction on the bootloader: 0x7d80 (code address): call *0x10018 (address of the first instruction)
+first instruction of the kernel: movw $0x1234, 0x472
+
+3. Where is the first instruction of the kernel?
+on the harddisk: ??
+on ram: *0x10018
+
+4. How does the boot loader decide how many sectors it must read in order to fetch the entire kernel from disk? Where does it find this information?
+It's reading the elf header first. It contained in there. The elf header size is fixed.
+
+Exercise 8:
+1. Explain the interface between kern/printf.c and kern/console.c. Specifically, what function does kern/console.c export? How is this function used by kern/printf.c?
+
+It exports the functions in the console.h:
+cons_getc(void);
+cons_init(void); //initializes console devices, cga/kbd (=keyboard)
+kbd_intr(void);
+serial_intr(void);
+
+As well as the cputchar function which is defined in stdio.h. It is also used in the user space (The other stuff mentioned above is kernel only) and used by printf.
+
+2. Explain the following from kern/console.c: ....
+It clears on line on the screen. We clear one line in the buffer and mouve the bouffer position one line back
+Magic number 0x0700 cleans the upper part (color coding etc.), ' ' overrides the codepoint.
+
+source: https://en.wikipedia.org/wiki/Color_Graphics_Adapter#Standard_text_modes
+
+3. Trace the execution of the following code step-by-step:
+fmt => fmt points to the format string, ap => variables
