@@ -372,9 +372,9 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_t 
 {
-  pde_t* page_table = pgdir[PDX(va)]; 
-  if (page_table != NULL) {
-    return &page_table[PTX(va)];
+  pde_t page_table_entry = pgdir[PDX(va)]; 
+  if (!page_table_entry) {
+    return &KADDR(PTE_ADDR(page_table_entry))[PTX(va)];
   }
   if (!create) {
     return NULL;
@@ -386,7 +386,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_
   pp->pp_ref++;
   physaddr_t page_address = page2pa(pp);
   pgdir[PDX(va)] = page_address | PTE_U | PTE_P;
-  return &page_table[PTX(va)];
+  return &KADDR(PTE_ADDR(page_address))[PTX(va)];
 }
 
 //
