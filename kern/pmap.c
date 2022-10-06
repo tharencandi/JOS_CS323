@@ -406,9 +406,13 @@ pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-  // Fill this function in
 
-
+  int i = 0;
+  for (; i<size/PGSIZE; i++) {
+    pte_t* pte = pgdir_walk(pgdir, (const void *)(va+(i*PGSIZE)), false);
+    if (pte != NULL)
+      *pte = (pa+(i*PGSIZE))|perm|PTE_P;
+  }
   
 }
 
@@ -440,7 +444,19 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
-  // Fill this function in
+  pte_t * pte = pgdir_walk(pgdir, va, true);
+  // if allocation fails
+  if (pte == NULL)
+    return E_NO_MEM;
+
+  // remove current mapping if there is one
+  page_remove(pgdir, va);
+
+  //create mapping
+  *pte = page2pa(pp)|perm|PTE_P;
+  pp->pp_ref++;
+  
+  
   return 0;
 }
 
@@ -458,8 +474,18 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-  // Fill this function in
-  return NULL;
+  pte_t * pte = pgdir_walk(pgdir, va, false);
+  if (pte == NULL)
+    return NULL;
+  
+  if (pte_store != NULL)
+    *pte_store = pte;
+  if (*pte == 0)
+    return NULL;
+  // check if no page at pte
+  struct PageInfo *page = pa2page(PTE_ADDR(*pte));
+  
+  return page;
 }
 
 //
@@ -480,7 +506,17 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-  // Fill this function in
+  pte_t * pte = NULL;
+  struct PageInfo *page = page_lookup(pgdir,va, &pte);
+  if (page == NULL)
+    return;
+
+  page_decref(page);
+
+  //wipe page table entry
+  *pte = (uint32_t) 0;
+  tlb_invalidate(pgdir, va);
+
 }
 
 //
