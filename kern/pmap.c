@@ -109,7 +109,7 @@ boot_alloc(uint32_t n) // called by mem_init to set up initial kernel page direc
     nextfree = ROUNDUP(nextfree + n, PGSIZE);
   } 
   
-  if (nextfree > KERNTOP)
+  if ((uint32_t)nextfree > KERNTOP)
     panic("no more memory.");
     
   return result;
@@ -372,9 +372,10 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_t 
 {
-  pde_t page_table_entry = pgdir[PDX(va)]; 
+  pde_t page_table_entry = pgdir[PDX(va)];
+  pde_t *page_table = (pde_t*) KADDR(PTE_ADDR(page_table_entry));
   if (!page_table_entry) {
-    return &KADDR(PTE_ADDR(page_table_entry))[PTX(va)];
+    return &page_table[PTX(va)];
   }
   if (!create) {
     return NULL;
@@ -386,7 +387,9 @@ pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_
   pp->pp_ref++;
   physaddr_t page_address = page2pa(pp);
   pgdir[PDX(va)] = page_address | PTE_U | PTE_P;
-  return &KADDR(PTE_ADDR(page_address))[PTX(va)];
+  //page_table = (pde_t*) KADDR(PTE_ADDR(pgdir[PDX(va)]));
+  return &((pde_t*)KADDR(page_address))[PTX(va)]; 
+  //return page_table[PTX(va)];
 }
 
 //
@@ -404,6 +407,9 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
   // Fill this function in
+
+
+  
 }
 
 //
