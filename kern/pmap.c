@@ -372,23 +372,33 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_t 
 {
-  pde_t page_table_entry = pgdir[PDX(va)];
+  physaddr_t page_table_entry = pgdir[PDX(va)];
   pde_t *page_table = (pde_t*) KADDR(PTE_ADDR(page_table_entry));
-  if (!page_table_entry) {
+
+  // if entry exists, return
+  if (page_table_entry != 0) {
     return &page_table[PTX(va)];
   }
+
+  // if it doesnt exist and create is false ret NULL
+  //(this works)
   if (!create) {
     return NULL;
   }
-  struct PageInfo* pp = page_alloc(1);
+
+  // create new page table for va 
+  // add it to page directory
+  struct PageInfo* pp = page_alloc(ALLOC_ZERO);
   if (pp == NULL) {
     return NULL;
   }
+  
   pp->pp_ref++;
   physaddr_t page_address = page2pa(pp);
+  page_table = (pde_t*)KADDR(page_address);
   pgdir[PDX(va)] = page_address | PTE_U | PTE_P;
-  //page_table = (pde_t*) KADDR(PTE_ADDR(pgdir[PDX(va)]));
-  return &((pde_t*)KADDR(page_address))[PTX(va)]; 
+
+  return &page_table[PTX(va)]; 
   //return page_table[PTX(va)];
 }
 
@@ -444,18 +454,27 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
+
+/*
+  TLB notes: 
+  
+  - stores a VA and PA mapping  (chaches mappings)
+  - if VA in TLB then done (fast), else check page tables (slow)
+  - if we update the mapping of a VA then we have to invalidate the TLB so that it is not pointing 
+    to the wrong PA.
+*/
+
   pte_t * pte = pgdir_walk(pgdir, va, true);
   // if allocation fails
   if (pte == NULL)
     return E_NO_MEM;
 
+  pp->pp_ref++;
   // remove current mapping if there is one
   page_remove(pgdir, va);
 
   //create mapping
   *pte = page2pa(pp)|perm|PTE_P;
-  pp->pp_ref++;
-  
   
   return 0;
 }
@@ -775,9 +794,8 @@ check_page(void)
 
   // there is no page allocated at address 0
   assert(page_lookup(kern_pgdir, (void*)0x0, &ptep) == NULL);
-
   // there is no free memory, so we can't allocate a page table
-  assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) < 0);
+  assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) == E_NO_MEM);
 
   // free pp0 and try again: pp0 should be used for page table
   page_free(pp0);
