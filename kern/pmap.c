@@ -191,6 +191,26 @@ mem_init(void)
   //    - pages itself -- kernel RW, user NONE
   // Your code goes here:
 
+  //UPAGES to UVPT
+  // UPAGES = read only copies of the page structs
+  // UVPT = USer read only virtual page table
+  
+
+  //UPAGES
+  boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages) , PTE_U);
+  //pages themselves ?
+  
+  //UVPT
+  // boot_map_region(kern_pgdir, UVPT, PTSIZE, PADDR(kern_pgdir), PTE_U | PTE_P);
+  /*
+    For the address range [UTOP,ULIM), both the kernel and the user environment 
+    have the same permission: they can read but not write this address range. 
+    This range of address is used to expose certain kernel data structures read-only 
+    to the user environment.
+  */
+
+
+
   //////////////////////////////////////////////////////////////////////
   // Use the physical memory that 'bootstack' refers to as the kernel
   // stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -203,6 +223,12 @@ mem_init(void)
   //     Permissions: kernel RW, user NONE
   // Your code goes here:
 
+    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W );
+    //boot_map_region(kern_pgdir, KSTACKTOP-PTSIZE, PTSIZE-KSTKSIZE,-1,0);
+
+
+
+
   //////////////////////////////////////////////////////////////////////
   // Map all of physical memory at KERNBASE.
   // Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -211,8 +237,9 @@ mem_init(void)
   // we just set up the mapping anyway.
   // Permissions: kernel RW, user NONE
   // Your code goes here:
-
+  boot_map_region(kern_pgdir, KERNBASE, MAX_32 - KERNBASE, 0, PTE_W);
   // Check that the initial page directory has been set up correctly.
+  cprintf("check\n");
   check_kern_pgdir();
 
   // Switch from the minimal entry page directory to the full kern_pgdir
@@ -419,7 +446,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 
   int i = 0;
   for (; i<size/PGSIZE; i++) {
-    pte_t* pte = pgdir_walk(pgdir, (const void *)(va+(i*PGSIZE)), false);
+    pte_t* pte = pgdir_walk(pgdir, (const void *)(va+(i*PGSIZE)), true);
     if (pte != NULL)
       *pte = (pa+(i*PGSIZE))|perm|PTE_P;
   }
@@ -733,7 +760,9 @@ check_kern_pgdir(void)
       break;
     default:
       if (i >= PDX(KERNBASE)) {
+
         assert(pgdir[i] & PTE_P);
+        cprintf("%x\n", pgdir[i]);
         assert(pgdir[i] & PTE_W);
       } else
         assert(pgdir[i] == 0);
@@ -839,7 +868,7 @@ check_page(void)
   assert(!(*pgdir_walk(kern_pgdir, (void*)PGSIZE, 0) & PTE_U));
 
   // should not be able to map at PTSIZE because need free page for page table
-  assert(page_insert(kern_pgdir, pp0, (void*)PTSIZE, PTE_W) < 0);
+  assert(page_insert(kern_pgdir, pp0, (void*)PTSIZE, PTE_W) == E_NO_MEM );
 
   // insert pp1 at PGSIZE (replacing pp2)
   assert(page_insert(kern_pgdir, pp1, (void*)PGSIZE, PTE_W) == 0);
