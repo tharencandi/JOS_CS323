@@ -223,7 +223,7 @@ mem_init(void)
   //     Permissions: kernel RW, user NONE
   // Your code goes here:
 
-    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W );
+    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
     //boot_map_region(kern_pgdir, KSTACKTOP-PTSIZE, PTSIZE-KSTKSIZE,-1,0);
 
 
@@ -399,6 +399,10 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_t 
 {
+
+
+
+
   physaddr_t page_table_entry = pgdir[PDX(va)];
   pde_t *page_table = (pde_t*) KADDR(PTE_ADDR(page_table_entry));
 
@@ -423,10 +427,12 @@ pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_
   pp->pp_ref++;
   physaddr_t page_address = page2pa(pp);
   page_table = (pde_t*)KADDR(page_address);
-  pgdir[PDX(va)] = page_address | PTE_U | PTE_P;
+  pgdir[PDX(va)] = page_address | PTE_U | PTE_P | PTE_W;
 
   return &page_table[PTX(va)]; 
   //return page_table[PTX(va)];
+
+  
 }
 
 //
@@ -444,11 +450,15 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 
+	cprintf("Virtual Address %x mapped to Physical Address %x\n", va, pa);
+
   int i = 0;
   for (; i<size/PGSIZE; i++) {
     pte_t* pte = pgdir_walk(pgdir, (const void *)(va+(i*PGSIZE)), true);
     if (pte != NULL)
       *pte = (pa+(i*PGSIZE))|perm|PTE_P;
+    else
+      cprintf("SDsdsdsd\n");
   }
   
 }
@@ -760,9 +770,7 @@ check_kern_pgdir(void)
       break;
     default:
       if (i >= PDX(KERNBASE)) {
-
         assert(pgdir[i] & PTE_P);
-        cprintf("%x\n", pgdir[i]);
         assert(pgdir[i] & PTE_W);
       } else
         assert(pgdir[i] == 0);
