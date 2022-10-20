@@ -109,7 +109,7 @@ boot_alloc(uint32_t n) // called by mem_init to set up initial kernel page direc
     nextfree = ROUNDUP(nextfree + n, PGSIZE);
   } 
   
-  if ((uint32_t)nextfree > KERNTOP)
+  if ((uint32_t)nextfree > KERNBASE + 0x400000)
     panic("no more memory.");
     
   return result;
