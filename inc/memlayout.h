@@ -84,8 +84,8 @@
 
 
 // All physical memory mapped at this address
+#define MAX_32          0xFFFFFFFF
 #define KERNBASE        0xF0000000
-
 // At IOPHYSMEM (640K) there is a 384K hole for I/O.  From the kernel,
 // IOPHYSMEM can be addressed at KERNBASE + IOPHYSMEM.  The hole ends
 // at physical address EXTPHYSMEM.

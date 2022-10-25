@@ -135,8 +135,11 @@ $(OBJDIR)/.vars.%: FORCE
 # Include Makefrags for subdirectories
 include boot/Makefrag
 include kern/Makefrag
+<<<<<<< HEAD
 include lib/Makefrag
 include user/Makefrag
+=======
+>>>>>>> lab2
 
 
 QEMUOPTS = -drive file=$(OBJDIR)/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb tcp::$(GDBPORT)
@@ -205,6 +208,7 @@ grade:
 	  (echo "'make clean' failed.  HINT: Do you have another running instance of JOS?" && exit 1)
 	./grade-lab$(LAB) $(GRADEFLAGS)
 
+<<<<<<< HEAD
 # For test runs
 
 prep-%:
@@ -221,6 +225,8 @@ run-%-nox: prep-% pre-qemu
 
 run-%: prep-% pre-qemu
 	$(QEMU) $(QEMUOPTS)
+=======
+>>>>>>> lab2
 
 
 DIRS := boot fs inc kern lib user
