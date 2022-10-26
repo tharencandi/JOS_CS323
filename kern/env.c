@@ -116,6 +116,12 @@ env_init(void)
 {
   // Set up envs array
   // LAB 3: Your code here.
+  int i;
+  for (i = NENV-1; i >= 0; i --) {
+    envs[i].env_id = 0;
+    envs[i].env_link = env_free_list;
+    env_free_list = &envs[i];
+  }
 
   // Per-CPU part of the initialization
   env_init_percpu();
@@ -162,6 +168,12 @@ env_setup_vm(struct Env *e)
   p = page_alloc(ALLOC_ZERO);
   if (!p)
     return -E_NO_MEM;
+  
+  /// copy pgdir, kernel doesnt have mappings below utop so this is fine?
+  // Maybe need to change to cpy only till UTOP.
+  memcpy(p, kern_pgdir, PGSIZE); 
+  e->env_pgdir = p;
+
 
   // Now, set e->env_pgdir and initialize the page directory.
   //
@@ -179,11 +191,14 @@ env_setup_vm(struct Env *e)
   //      pp_ref for env_free to work correctly.
   //    - The functions in kern/pmap.h are handy.
 
-  // LAB 3: Your code here.
+  
 
   // UVPT maps the env's own page table read-only.
   // Permissions: kernel R, user R
   e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
+  
+  //increment page ref
+  pa2page(e->env_pgdir)->pp_ref++;
 
   return 0;
 }
@@ -266,6 +281,22 @@ region_alloc(struct Env *e, void *va, size_t len)
   //   'va' and 'len' values that are not page-aligned.
   //   You should round va down, and round (va + len) up.
   //   (Watch out for corner-cases!)
+
+  ROUNDDOWN(va, PGSIZE);
+  ROUNDUP(len, PGSIZE);
+
+  void * i;
+  for (i = va; i < va+len ; i += PGSIZE) {
+      struct pageInfo * pp = page_alloc(0); // DO NOT ZERO PAGE !
+      if (pp == NULL)
+        panic("region allocation failed!");
+        
+      int ret = page_insert(e->env_pgdir, pp, i, PTE_W|PTE_U);//writable by usr and kernel
+      if (ret < 0) {
+        panic("region allocation failed!");
+      }
+  }
+
 }
 
 //
