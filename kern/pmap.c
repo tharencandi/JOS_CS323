@@ -152,18 +152,17 @@ mem_init(void)
   kern_pgdir[PDX(UVPT)] = PADDR(kern_pgdir) | PTE_U | PTE_P;
 
   //////////////////////////////////////////////////////////////////////
+  // Make 'envs' point to an array of size 'NENV' of 'struct Env'.
+  // LAB 3: Your code here.
+  envs = (struct Env*) boot_alloc(sizeof(struct Env)* NENV);
+
+  //////////////////////////////////////////////////////////////////////
   // Allocate an array of npages 'struct PageInfo's and store it in 'pages'.
   // The kernel uses this array to keep track of physical pages: for
   // each physical page, there is a corresponding struct PageInfo in this
   // array.  'npages' is the number of physical pages in memory.  Use memset
   // to initialize all fields of each struct PageInfo to 0.
   // Your code goes here:
-
-
-  //////////////////////////////////////////////////////////////////////
-  // Make 'envs' point to an array of size 'NENV' of 'struct Env'.
-  // LAB 3: Your code here.
-
   //////////////////////////////////////////////////////////////////////
   //allocating
   pages = (struct PageInfo*) boot_alloc(sizeof(struct PageInfo)* npages);
@@ -190,13 +189,6 @@ mem_init(void)
   //////////////////////////////////////////////////////////////////////
   // Now we set up virtual memory
 
-  //////////////////////////////////////////////////////////////////////
-  // Map 'pages' read-only by the user at linear address UPAGES
-  // Permissions:
-  //    - the new image at UPAGES -- kernel R, user R
-  //      (ie. perm = PTE_U | PTE_P)
-  //    - pages itself -- kernel RW, user NONE
-  // Your code goes here:
 
   //////////////////////////////////////////////////////////////////////
   // Map the 'envs' array read-only by the user at linear address UENVS
@@ -205,17 +197,22 @@ mem_init(void)
   //    - the new image at UENVS  -- kernel R, user R
   //    - envs itself -- kernel RW, user NONE
   // LAB 3: Your code here.
+  boot_map_region(kern_pgdir, UENVS, PTSIZE,  PADDR(envs), PTE_U);
+  
+  //////////////////////////////////////////////////////////////////////
+  // Map 'pages' read-only by the user at linear address UPAGES
+  // Permissions:
+  //    - the new image at UPAGES -- kernel R, user R
+  //      (ie. perm = PTE_U | PTE_P)
+  //    - pages itself -- kernel RW, user NONE
+  // Your code goes here:
   //UPAGES to UVPT
   // UPAGES = read only copies of the page structs
   // UVPT = USer read only virtual page table
-  
 
   //UPAGES
   boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages) , PTE_U);
-  //pages themselves ?
   
-  //UVPT
-  // boot_map_region(kern_pgdir, UVPT, PTSIZE, PADDR(kern_pgdir), PTE_U | PTE_P);
   /*
     For the address range [UTOP,ULIM), both the kernel and the user environment 
     have the same permission: they can read but not write this address range. 
@@ -459,17 +456,12 @@ pgdir_walk(pde_t *pgdir, const void *va, int create) // Why is this of type pde_
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	cprintf("Virtual Address %x mapped to Physical Address %x\n", va, pa);
-
   int i = 0;
   for (; i<size/PGSIZE; i++) {
     pte_t* pte = pgdir_walk(pgdir, (const void *)(va+(i*PGSIZE)), true);
     if (pte != NULL)
       *pte = (pa+(i*PGSIZE))|perm|PTE_P;
-    else
-      cprintf("SDsdsdsd\n");
   }
-  
 }
 
 //
@@ -512,7 +504,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
   pte_t * pte = pgdir_walk(pgdir, va, true);
   // if allocation fails
   if (pte == NULL)
-    return E_NO_MEM;
+    return -E_NO_MEM;
 
   pp->pp_ref++;
   // remove current mapping if there is one
