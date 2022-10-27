@@ -380,6 +380,7 @@ load_icode(struct Env *e, uint8_t *binary)
       continue;
     region_alloc(e, (void*)ph->p_va, ph->p_memsz);
     //asumption: using e's pagedir....
+    memset((void *)ph->p_va, 0, ph->p_memsz);
     memcpy((void*)ph->p_va, (void*) (binary + ph->p_offset), ph->p_filesz);
   }
 
@@ -390,13 +391,12 @@ load_icode(struct Env *e, uint8_t *binary)
   
 
   // set eip to first instruction.
-  e->env_tf.tf_eip = (uintptr_t) elf->e_entry;
+  e->env_tf.tf_eip = (uintptr_t) elf->e_entry; //first instr
+  
 
-  
-  
   // Now map one page for the program's initial stack
   // at virtual address USTACKTOP - PGSIZE.
-  region_alloc(e,(void*) (UXSTACKTOP - PGSIZE), PGSIZE);
+  region_alloc(e,(void*) (USTACKTOP - PGSIZE), PGSIZE);
 
   //change back to kernel address space. 
   lcr3(PADDR(kern_pgdir));
@@ -537,17 +537,16 @@ env_run(struct Env *e)
   //	e->env_tf to sensible values.
 
   // LAB 3: Your code here.
-  
-  if (curenv->env_status == ENV_RUNNING)
+  if (curenv != NULL && curenv->env_status == ENV_RUNNING)
     curenv->env_status = ENV_RUNNABLE;
 
   curenv = e;
   e->env_status = ENV_RUNNING;
   e->env_runs++;
-  cprintf("hello!!\n"); 
+  
   lcr3((uint32_t) PADDR(e->env_pgdir));
   env_pop_tf(&e->env_tf);
   
- panic("env_run not yet implemented");
+ 
 }
 
