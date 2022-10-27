@@ -171,8 +171,9 @@ env_setup_vm(struct Env *e)
   
   /// copy pgdir, kernel doesnt have mappings below utop so this is fine?
   // Maybe need to change to cpy only till UTOP.
-  memcpy(p, kern_pgdir, PGSIZE); 
   e->env_pgdir = page2kva(p);
+  memcpy(e->env_pgdir, kern_pgdir, PGSIZE); 
+  
   
 
 
@@ -357,7 +358,7 @@ load_icode(struct Env *e, uint8_t *binary)
   // this makes loading things at the new VA's easy.  
   // TODO: 
 
-  lcr3(PADDR(e->env_pgdir));
+
 
 
   struct Elf *elf = (struct Elf *)binary;
@@ -369,7 +370,8 @@ load_icode(struct Env *e, uint8_t *binary)
   struct Proghdr *ph = (struct Proghdr *)(binary + elf->e_phoff);
   struct Proghdr *last_ph = ph + elf->e_phnum;
 
-
+  lcr3((uint32_t)PADDR(e->env_pgdir));
+  
   //The ph->p_filesz bytes from the ELF binary, starting at
   //  'binary + ph->p_offset', should be copied to virtual address
   //  ph->p_va.  Any remaining memory bytes should be cleared to zero
@@ -515,6 +517,8 @@ env_pop_tf(struct Trapframe *tf)
 void
 env_run(struct Env *e)
 {
+
+  
   // Step 1: If this is a context switch (a new environment is running):
   //	   1. Set the current environment (if any) back to
   //	      ENV_RUNNABLE if it is ENV_RUNNING (think about
@@ -540,9 +544,10 @@ env_run(struct Env *e)
   curenv = e;
   e->env_status = ENV_RUNNING;
   e->env_runs++;
-  lcr3(PADDR(e->env_pgdir));
+  cprintf("hello!!\n"); 
+  lcr3((uint32_t) PADDR(e->env_pgdir));
   env_pop_tf(&e->env_tf);
   
-  //panic("env_run not yet implemented");
+ panic("env_run not yet implemented");
 }
 
