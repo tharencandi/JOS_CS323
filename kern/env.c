@@ -172,7 +172,9 @@ env_setup_vm(struct Env *e)
   /// copy pgdir, kernel doesnt have mappings below utop so this is fine?
   // Maybe need to change to cpy only till UTOP.
   memcpy(p, kern_pgdir, PGSIZE); 
-  e->env_pgdir = p;
+  e->env_pgdir = page2kva(p);
+  
+
 
 
   // Now, set e->env_pgdir and initialize the page directory.
@@ -198,7 +200,8 @@ env_setup_vm(struct Env *e)
   e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
   
   //increment page ref
-  pa2page(e->env_pgdir)->pp_ref++;
+ 
+  pa2page(PADDR(e->env_pgdir))->pp_ref++;
 
   return 0;
 }
@@ -287,7 +290,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 
   void * i;
   for (i = va; i < va+len ; i += PGSIZE) {
-      struct pageInfo * pp = page_alloc(0); // DO NOT ZERO PAGE !
+      struct PageInfo * pp = page_alloc(0); // DO NOT ZERO PAGE !
       if (pp == NULL)
         panic("region allocation failed!");
         
@@ -363,8 +366,8 @@ load_icode(struct Env *e, uint8_t *binary)
     panic("bad elf.");
   
   //load each program segfment
-  struct Proghdr *ph = (struct Proghr *)(binary + elf->e_phoff);
-  struct ProgHdr *last_ph = ph + elf->e_phnum;
+  struct Proghdr *ph = (struct Proghdr *)(binary + elf->e_phoff);
+  struct Proghdr *last_ph = ph + elf->e_phnum;
 
 
   //The ph->p_filesz bytes from the ELF binary, starting at
@@ -386,11 +389,12 @@ load_icode(struct Env *e, uint8_t *binary)
 
   // set eip to first instruction.
   e->env_tf.tf_eip = (uintptr_t) elf->e_entry;
+
   
   
   // Now map one page for the program's initial stack
   // at virtual address USTACKTOP - PGSIZE.
-  region_alloc(e,UXSTACKTOP - PGSIZE, PGSIZE);
+  region_alloc(e,(void*) (UXSTACKTOP - PGSIZE), PGSIZE);
 
   //change back to kernel address space. 
   lcr3(PADDR(kern_pgdir));
@@ -529,7 +533,16 @@ env_run(struct Env *e)
   //	e->env_tf to sensible values.
 
   // LAB 3: Your code here.
+  
+  if (curenv->env_status == ENV_RUNNING)
+    curenv->env_status = ENV_RUNNABLE;
 
-  panic("env_run not yet implemented");
+  curenv = e;
+  e->env_status = ENV_RUNNING;
+  e->env_runs++;
+  lcr3(PADDR(e->env_pgdir));
+  env_pop_tf(&e->env_tf);
+  
+  //panic("env_run not yet implemented");
 }
 
