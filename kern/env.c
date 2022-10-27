@@ -348,16 +348,53 @@ load_icode(struct Env *e, uint8_t *binary)
   //  So which page directory should be in force during
   //  this function?
   //
+
+
+  // step 1 need to change to env pagedir.
+  // this makes loading things at the new VA's easy.  
+  // TODO: 
+
+  lcr3(PADDR(e->env_pgdir));
+
+
+  struct Elf *elf = (struct Elf *)binary;
+
+  if (elf->e_magic != ELF_MAGIC)
+    panic("bad elf.");
+  
+  //load each program segfment
+  struct Proghdr *ph = (struct Proghr *)(binary + elf->e_phoff);
+  struct ProgHdr *last_ph = ph + elf->e_phnum;
+
+
+  //The ph->p_filesz bytes from the ELF binary, starting at
+  //  'binary + ph->p_offset', should be copied to virtual address
+  //  ph->p_va.  Any remaining memory bytes should be cleared to zero
+  for (; ph < last_ph; ph ++) {
+    if(ph->p_type != ELF_PROG_LOAD)
+      continue;
+    region_alloc(e, (void*)ph->p_va, ph->p_memsz);
+    //asumption: using e's pagedir....
+    memcpy((void*)ph->p_va, (void*) (binary + ph->p_offset), ph->p_filesz);
+  }
+
+
   //  You must also do something with the program's entry point,
   //  to make sure that the environment starts executing there.
   //  What?  (See env_run() and env_pop_tf() below.)
+  
 
-  // LAB 3: Your code here.
-
+  // set eip to first instruction.
+  e->env_tf.tf_eip = (uintptr_t) elf->e_entry;
+  
+  
   // Now map one page for the program's initial stack
   // at virtual address USTACKTOP - PGSIZE.
+  region_alloc(e,UXSTACKTOP - PGSIZE, PGSIZE);
 
-  // LAB 3: Your code here.
+  //change back to kernel address space. 
+  lcr3(PADDR(kern_pgdir));
+
 }
 
 //
@@ -371,6 +408,13 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
   // LAB 3: Your code here.
+  struct Env * new_env;
+  if (env_alloc(&new_env, 0) < 0)
+    panic("cant allocate new enviornment");
+  load_icode(new_env, binary);
+
+  new_env->env_type = ENV_RUNNABLE;
+
 }
 
 //
