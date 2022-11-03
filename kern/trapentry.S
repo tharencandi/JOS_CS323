@@ -99,8 +99,9 @@ Consider using the pushal instruction; it fits nicely with the layout of the str
         pushal
 
 /*load GD_KD into %ds and %es*/
-        mov GD_KD, %ds 
-        mov GD_KD, %es
+        movw $(GD_KD), %ax
+        movw %ax, %ds
+        movw %ax, %es
 /*3. pushl %esp to pass a pointer to the Trapframe as an argument to trap()*/
         pushl %esp
 /*4. call trap (can trap ever return?)*/
