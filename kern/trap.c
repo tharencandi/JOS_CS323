@@ -9,6 +9,9 @@
 #include <kern/env.h>
 #include <kern/syscall.h>
 
+
+int syscall_handler(struct Trapframe *tf);
+
 static struct Taskstate ts;
 
 /* For debugging, so print_trapframe can distinguish between printing
@@ -274,5 +277,15 @@ void page_fault_handler(struct Trapframe *tf)
 }
 
 int syscall_handler(struct Trapframe *tf) {
-  return syscall(tf);
+  /*
+  The application will pass the system call number 
+  and the system call arguments in registers. 
+  This way, the kernel won’t need to grub around in the user environment’s stack or instruction stream. 
+  The system call number will go in %eax,
+  the arguments (up to five of them) will go in %edx, %ecx, %ebx, %edi, and %esi, respectively. 
+  The kernel passes the return value back in %eax
+  */
+  int ret = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+  tf->tf_regs.reg_eax = ret;
+  return ret;
 }
