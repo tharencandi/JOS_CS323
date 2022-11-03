@@ -197,6 +197,9 @@ trap_dispatch(struct Trapframe *tf)
   case T_BRKPT:
     monitor(tf);
     break;
+  case T_SYSCALL:
+    syscall_handler(tf);
+    break;
   default:
     // Unexpected trap: The user process or the kernel has a bug.
     print_trapframe(tf);
@@ -268,4 +271,8 @@ void page_fault_handler(struct Trapframe *tf)
           curenv->env_id, fault_va, tf->tf_eip);
   print_trapframe(tf);
   env_destroy(curenv);
+}
+
+int syscall_handler(struct Trapframe *tf) {
+  return syscall(tf);
 }
