@@ -611,6 +611,19 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
   // LAB 3: Your code here.
+  ROUNDUP(len, PGSIZE);
+  ROUNDDOWN(va, PGSIZE);
+  int num_pages = len/PGSIZE;
+  if ((uintptr_t) va + len >= ULIM )
+    return -E_FAULT;
+  int i = 0;
+  for (; i < num_pages; i++) {
+    pte_t * page; 
+    page_lookup(env->env_pgdir, (void*)(va + i),  &page);
+    if ((*page & 0b111111111)  !=  (uint32_t)perm)
+      return -E_FAULT;
+
+  }
 
   return 0;
 }
