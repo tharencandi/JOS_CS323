@@ -289,7 +289,6 @@ int syscall_handler(struct Trapframe *tf) {
   the arguments (up to five of them) will go in %edx, %ecx, %ebx, %edi, and %esi, respectively. 
   The kernel passes the return value back in %eax
   */
-
   int ret = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
   tf->tf_regs.reg_eax = ret;
   return ret;

@@ -610,6 +610,7 @@ static uintptr_t user_mem_check_addr;
 int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
+  cprintf("HEEEEEEEEEEEEEEEEEEEEEEELLLLLLLLLLLLLLLLLOOOOOOOOOOO\n");
   // LAB 3: Your code here.
   ROUNDUP(len, PGSIZE);
   ROUNDDOWN(va, PGSIZE);
@@ -619,8 +620,9 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
   int i = 0;
   for (; i < num_pages; i++) {
     pte_t * page; 
-    page_lookup(env->env_pgdir, (void*)(va + i),  &page);
-    if ((*page & 0b111111111)  !=  (uint32_t)perm)
+    page_lookup(env->env_pgdir, (void*)(va + i * PGSIZE),  &page);
+    cprintf("%p\n", va + i * PGSIZE);
+    if ((*page & 0xFFF)  !=  (uint32_t)perm)
       return -E_FAULT;
 
   }
