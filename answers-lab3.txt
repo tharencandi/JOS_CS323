@@ -1,0 +1,7 @@
+1. each handler gives the common handling function an id of what the exception was which allows it to do specific handling. this would not be present if the entry point was the same for all.
+
+2. i dont remember we did it a week ago. who remembers that far back??
+
+3. this depends on the privilege level set with setgate
+
+4. good question
