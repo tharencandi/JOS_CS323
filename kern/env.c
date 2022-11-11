@@ -286,8 +286,8 @@ region_alloc(struct Env *e, void *va, size_t len)
   //   You should round va down, and round (va + len) up.
   //   (Watch out for corner-cases!)
 
-  ROUNDDOWN(va, PGSIZE);
-  ROUNDUP(len, PGSIZE);
+  va = ROUNDDOWN(va, PGSIZE);
+  len = ROUNDUP(len, PGSIZE);
 
   void * i;
   for (i = va; i < va+len ; i += PGSIZE) {

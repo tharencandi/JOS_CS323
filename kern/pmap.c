@@ -611,42 +611,27 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
   // LAB 3: Your code here.
-  uintptr_t end;
-  end = (uintptr_t)va + len;
-  ROUNDUP(end, PGSIZE);
-  if (end >= ULIM )
-    return -E_FAULT;
-  uintptr_t i = (uintptr_t)va;
-  for (; i < end; i+=PGSIZE) {
+
+	uintptr_t begin = (uintptr_t) ROUNDDOWN(va, PGSIZE); 
+	uintptr_t end = (uintptr_t) ROUNDUP(va+len, PGSIZE);
+  
+  perm |= PTE_P;
+  uintptr_t i;
+  for (i = begin; i < end; i+=PGSIZE) {
     pte_t * page; 
     page_lookup(env->env_pgdir, (void *)i,  &page);
-    if ((*page & perm) != perm) {
-      user_mem_check_addr = i;
+    if (i >= ULIM || page == NULL || (*page & perm) != perm) {
+      if (i < (uintptr_t)va)
+        user_mem_check_addr = (uintptr_t)va;
+      else
+        user_mem_check_addr = i;
       return -E_FAULT;
     }
   }
 
   return 0;
 }
-// int
-// user_mem_check(struct Env *env, const void *va, size_t len, int perm)
-// {
-// 	// LAB 3: Your code here.
-// 	cprintf("user_mem_check va: %x, len: %x\n", va, len);
-// 	uint32_t begin = (uint32_t) ROUNDDOWN(va, PGSIZE); 
-// 	uint32_t end = (uint32_t) ROUNDUP(va+len, PGSIZE);
-// 	uint32_t i;
-// 	for (i = (uint32_t)begin; i < end; i+=PGSIZE) {
-// 		pte_t *pte = pgdir_walk(env->env_pgdir, (void*)i, 0);
-// 		// pprint(pte);
-// 		if ((i>=ULIM) || !pte || !(*pte & PTE_P) || ((*pte & perm) != perm)) {
-// 			user_mem_check_addr = (i<(uint32_t)va?(uint32_t)va:i);
-// 			return -E_FAULT;
-// 		}
-// 	}
-// 	cprintf("user_mem_check success va: %x, len: %x\n", va, len);
-// 	return 0;
-// }
+
 
 //
 // Checks that environment 'env' is allowed to access the range
