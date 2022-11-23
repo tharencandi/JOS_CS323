@@ -208,6 +208,20 @@ print_regs(struct PushRegs *regs)
   cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
 
+int syscall_handler(struct Trapframe *tf) {
+  /*
+  The application will pass the system call number 
+  and the system call arguments in registers. 
+  This way, the kernel won’t need to grub around in the user environment’s stack or instruction stream. 
+  The system call number will go in %eax,
+  the arguments (up to five of them) will go in %edx, %ecx, %ebx, %edi, and %esi, respectively. 
+  The kernel passes the return value back in %eax
+  */
+  int ret = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+  tf->tf_regs.reg_eax = ret;
+  return ret;
+}
+
 static void
 trap_dispatch(struct Trapframe *tf)
 {
@@ -316,12 +330,6 @@ trap(struct Trapframe *tf)
 void
 page_fault_handler(struct Trapframe *tf)
 {
-  uint32_t fault_va;
-
-
-  // Read processor's CR2 register to find the faulting address
-  fault_va = rcr2();
-
   // Handle kernel-mode page faults.
 
   // LAB 3: Your code here.
@@ -374,18 +382,4 @@ page_fault_handler(struct Trapframe *tf)
           curenv->env_id, fault_va, tf->tf_eip);
   print_trapframe(tf);
   env_destroy(curenv);
-}
-
-int syscall_handler(struct Trapframe *tf) {
-  /*
-  The application will pass the system call number 
-  and the system call arguments in registers. 
-  This way, the kernel won’t need to grub around in the user environment’s stack or instruction stream. 
-  The system call number will go in %eax,
-  the arguments (up to five of them) will go in %edx, %ecx, %ebx, %edi, and %esi, respectively. 
-  The kernel passes the return value back in %eax
-  */
-  int ret = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
-  tf->tf_regs.reg_eax = ret;
-  return ret;
 }
