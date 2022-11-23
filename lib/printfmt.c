@@ -91,6 +91,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
   char padc;
 
   while (1) {
+    //put characters to console that dont need to be 'replaced'/formatted
     while ((ch = *(unsigned char*)fmt++) != '%') {
       if (ch == '\0')
         return;
@@ -117,6 +118,11 @@ reswitch:
       goto reswitch;
 
     // width field
+    //An optional decimal digit string (with nonzero first digit)
+    // specifying a minimum field width.  If the converted value has
+    // fewer characters than the field width, it will be padded with
+    // spaces on the left (or right, if the left-adjustment flag has
+    // been given).
     case '1':
     case '2':
     case '3':
@@ -208,11 +214,9 @@ process_precision:
     // (unsigned) octal
     case 'o':
       // Replace this with your code.
-      putch('X', putdat);
-      putch('X', putdat);
-      putch('X', putdat);
-      break;
-
+      num = getuint(&ap, lflag);
+      base = 8;
+      goto number;
     // pointer
     case 'p':
       putch('0', putdat);
