@@ -49,10 +49,12 @@ i386_init(void)
   pic_init();
 
   // Acquire the big kernel lock before waking up APs
-  // Your code here:
+  lock_kernel();
 
   // Starting non-boot CPUs
   boot_aps();
+
+  unlock_kernel();
 
 #if defined(TEST)
   // Don't touch -- used by grading script!
@@ -116,9 +118,10 @@ mp_main(void)
   // only one CPU can enter the scheduler at a time!
   //
   // Your code here:
-
-  // Remove this after you finish Exercise 4
-  for (;; ) ;
+  lock_kernel();
+  sched_yield();
+  unlock_kernel();
+ 
 }
 
 /*
