@@ -14,7 +14,7 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 
-static struct Taskstate ts;
+//static struct Taskstate ts;
 
 /* For debugging, so print_trapframe can distinguish between printing
  * a saved trapframe and printing the current trapframe and print some

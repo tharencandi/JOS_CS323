@@ -12,7 +12,6 @@ struct Env * find_runnable_env(struct Env * start, struct Env * end);
 // Choose a user environment to run and run it.
 void sched_yield(void)
 {
-  cprintf("###########################I'm in yield!");
   struct Env *idle = NULL;
 
   // Implement simple round-robin scheduling.
@@ -31,7 +30,8 @@ void sched_yield(void)
   // below to halt the cpu.
 
   // LAB 4: Your code here.
-  struct Env *current_env = thiscpu->cpu_env++;
+  /*
+  
   idle = find_runnable_env(thiscpu->cpu_env++, &envs[NENV]);
 
   if (idle == NULL)
@@ -39,17 +39,34 @@ void sched_yield(void)
     idle = find_runnable_env(&envs[0], thiscpu->cpu_env);
   }
 
-  if (idle == NULL && thiscpu->cpu_env->env_status == ENV_RUNNING)
+  if (idle == NULL && (thiscpu->cpu_env->env_status == ENV_RUNNING || thiscpu->cpu_env->env_status == ENV_RUNNABLE))
   {
     idle = thiscpu->cpu_env;
   }
+  */
+    
+  int i = cpunum() + 1; // start from next environment so the last iterated is current env.
+  int count;
+  struct Env *e;
+  for(count = 0; count < NENV; count ++) {
+    e = &envs[i%NENV];
 
-  // sched_halt never returns
-  if (idle == NULL) {
-    sched_halt();
+    if (e->env_status == ENV_RUNNABLE) {
+      idle = e;
+      break;
+    }
+    i++;
+  } 
+
+  if (thiscpu->cpu_env != NULL && thiscpu->cpu_env->env_status == ENV_RUNNING) {
+    idle = thiscpu->cpu_env;
   }
-  env_run(idle);
-}
+  
+  if (idle != NULL)
+    env_run(idle);
+
+  sched_halt();
+  }
 
 struct Env * find_runnable_env(struct Env * start, struct Env * end) {
   struct Env * current_env = start;

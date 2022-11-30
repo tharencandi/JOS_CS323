@@ -54,7 +54,6 @@ i386_init(void)
   // Starting non-boot CPUs
   boot_aps();
 
-  unlock_kernel();
 
 #if defined(TEST)
   // Don't touch -- used by grading script!
@@ -122,7 +121,6 @@ mp_main(void)
   // Your code here:
   lock_kernel();
   sched_yield();
-  unlock_kernel();
  
 }
 
