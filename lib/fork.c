@@ -77,8 +77,23 @@ duppage(envid_t envid, unsigned pn)
 envid_t
 fork(void)
 {
+  set_pgfault_handler(pgfault);
+  int env_id = sys_exofork();
+  if (env_id < 0) {     
+    return env_id;
+  }
+  int i;
+
+  // struct PageInfo * current = UPAGES;
+  // struct PageInfo * end = UVPT; 
+  // // for (i = 0; i < thisenv.)
+  // for(current; current < end; current++){
+  //   if(page) {
+  //     PGADDR
+  //   }
+  // }
+
   // LAB 4: Your code here.
-  panic("fork not implemented");
 }
 
 // Challenge!
