@@ -701,8 +701,7 @@ int user_mem_check(struct Env *env, const void *va, size_t len, int perm)
   perm |= PTE_P;
   uintptr_t i;
   for (i = begin; i < end; i+=PGSIZE) {
-    pte_t * page; 
-    page_lookup(env->env_pgdir, (void *)i,  &page);
+    pte_t * page =pgdir_walk(env->env_pgdir, (void*)i, 0); 
     if (i >= ULIM || page == NULL || (*page & perm) != perm) {
       if (i < (uintptr_t)va)
         user_mem_check_addr = (uintptr_t)va;
