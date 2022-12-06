@@ -381,7 +381,6 @@ void page_fault_handler(struct Trapframe *tf)
   if (curenv->env_pgfault_upcall)
   { 
     uintptr_t utf_uint;
-    struct UTrapframe *utf;
     if (UXSTACKTOP-PGSIZE<=tf->tf_esp && tf->tf_esp<=UXSTACKTOP-1)
     {
       //tf->tf_esp++;
@@ -393,7 +392,7 @@ void page_fault_handler(struct Trapframe *tf)
       //tf->tf_esp = UXSTACKTOP - 1;
       utf_uint =  UXSTACKTOP - sizeof(struct UTrapframe);
     }
-    utf = (struct UTrapframe *)utf_uint;
+    struct UTrapframe *utf = (struct UTrapframe *)utf_uint;
     user_mem_assert(curenv, utf, 1, PTE_W); 
 
 
