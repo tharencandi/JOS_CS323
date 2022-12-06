@@ -377,38 +377,40 @@ void page_fault_handler(struct Trapframe *tf)
   if (tf->tf_cs == (GD_KT >> 3))
     panic("page fault in kernel.");
 
-  cprintf("[%08x] user fault va %08x ip %08x\n",
-          curenv->env_id, fault_va, tf->tf_eip);
+
   if (curenv->env_pgfault_upcall)
   {
-    uint32_t esp_old = tf->tf_esp;
-    if (UXSTACKTOP - PGSIZE <= tf->tf_esp && tf->tf_esp < USTACKTOP)
+    struct UTrapframe *utf;
+    if (UXSTACKTOP-PGSIZE<=tf->tf_esp && tf->tf_esp<=UXSTACKTOP-1)
     {
-      tf->tf_esp++;
-      *(uint32_t *)tf->tf_esp = 0;
+      //tf->tf_esp++;
+      //*(uint32_t *)tf->tf_esp = 0;
+      utf = (struct UTrapframe *) (tf->tf_esp - sizeof(struct UTrapframe) - 4);
     }
     else
     {
-      tf->tf_esp = UXSTACKTOP - 1;
+      //tf->tf_esp = UXSTACKTOP - 1;
+      utf = (struct UTrapframe *) UXSTACKTOP - sizeof(struct UTrapframe);
     }
-    struct UTrapframe *utf = (struct UTrapframe *)tf->tf_esp - sizeof(struct UTrapframe);
+ 
     user_mem_assert(curenv, utf, 1, PTE_W); // 1 is enough
-    tf->tf_esp = (uintptr_t)utf;
+
 
     utf->utf_fault_va = fault_va;
     utf->utf_err = tf->tf_err;
     utf->utf_regs = tf->tf_regs;
     utf->utf_eip = tf->tf_eip;
     utf->utf_eflags = tf->tf_eflags;
-    utf->utf_esp = esp_old;
+    utf->utf_esp = tf->tf_esp;
 
     curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
     curenv->env_tf.tf_esp = (uintptr_t)utf;
     env_run(curenv);
   }
-  else
-  {
+  
+    cprintf("[%08x] user fault va %08x ip %08x\n",
+        curenv->env_id, fault_va, tf->tf_eip);
     print_trapframe(tf);
     env_destroy(curenv);
-  }
+  
 }
