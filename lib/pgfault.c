@@ -31,10 +31,13 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
     // First time through!
     // LAB 4: Your code here.
     int ret = sys_page_alloc(envid, (void *) UXSTACKTOP - PGSIZE, PTE_U | PTE_W | PTE_P);
-    cprintf("ret: %d\n", ret);
+    if (ret < 0)
+      panic("can't allocation uxstack.");
   }
 
   // Save handler pointer for assembly to call.
   _pgfault_handler = handler;
-  sys_env_set_pgfault_upcall(envid, _pgfault_handler);
+  int ret = sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
+  if (ret < 0)
+    panic("cant set pgfault upcall ");
 }
