@@ -84,6 +84,13 @@ void t_mchk();
 void t_simderr();
 void t_syscall();
 
+void irq_timer();
+void irq_kbd(); 
+void irq_serial();
+void irq_spurious();
+void irq_ide();
+void irq_error();
+
 void trap_init(void)
 {
   extern struct Segdesc gdt[];
@@ -109,6 +116,16 @@ void trap_init(void)
   SETGATE(idt[T_SIMDERR], 1, GD_KT, t_simderr, 0);
   SETGATE(idt[T_SYSCALL], 0, GD_KT, t_syscall, 3);
 
+  /*int i;
+  for (i = IRQ_OFFSET; i < IRQ_OFFSET + 16; i++)
+	  SETGATE(idt[i], 0, GD_KT, NULL, 0);
+  */
+  SETGATE(idt[IRQ_OFFSET + IRQ_TIMER],0, GD_KT, irq_timer, 0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_KBD],0, GD_KT, irq_kbd, 0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL],0, GD_KT, irq_serial, 0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS],0, GD_KT, irq_spurious, 0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_IDE],0, GD_KT, irq_ide, 0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_ERROR],0, GD_KT, irq_error, 0);
   // Per-CPU setup
   trap_init_percpu();
 }
@@ -251,6 +268,9 @@ trap_dispatch(struct Trapframe *tf)
   case T_SYSCALL:
     syscall_handler(tf);
     break;
+  case IRQ_OFFSET + IRQ_TIMER:
+    sched_yield();
+  break;
   default:
     // Unexpected trap: The user process or the kernel has a bug.
     print_trapframe(tf);
