@@ -62,10 +62,12 @@ sys_env_destroy(envid_t envid)
   return 0;
 }
 
-// Allocate a new environment.
-// Returns envid of new environment, or < 0 on error.  Errors are:
-//	-E_NO_FREE_ENV if no free environment is available.
-//	-E_NO_MEM on memory exhaustion.
+/*
+  Allocate a new environment.
+  Returns envid of new environment, or < 0 on error.  Errors are:
+    -E_NO_FREE_ENV if no free environment is available.
+    -E_NO_MEM on memory exhaustion.
+*/
 static int sys_exofork(void) {
 
   // Create the new environment with env_alloc(), from kern/env.c.

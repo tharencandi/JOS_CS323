@@ -17,24 +17,33 @@ pgfault(struct UTrapframe *utf)
   void *addr = (void*)utf->utf_fault_va;
   uint32_t err = utf->utf_err;
   int r;
-
+  addr = ROUNDDOWN(addr, PGSIZE);
   // Check that the faulting access was (1) a write, and (2) to a
   // copy-on-write page.  If not, panic.
   // Hint:
   //   Use the read-only page table mappings at uvpt
   //   (see <inc/memlayout.h>).
-
-  // LAB 4: Your code here.
+  if (! (uvpt[PGNUM(addr)] & PTE_W && uvpt[PGNUM(addr)] & PTE_COW))
+    panic("page not writeable and copy-on-writable");
+  
 
   // Allocate a new page, map it at a temporary location (PFTEMP),
   // copy the data from the old page to the new page, then move the new
   // page to the old page's address.
   // Hint:
   //   You should make three system calls.
+  uint32_t envid = sys_getenvid();
+  if (envid < 0)
+    panic("bruh");
+  r = sys_page_alloc(envid, (void*) PFTEMP,  PTE_P | PTE_U | PTE_W);
+  if (r < 0)
+    panic("bruh");
+  memcpy((void*) PFTEMP, addr, PGSIZE);
+  r = sys_page_map(envid,(void*) PFTEMP, envid, addr, PTE_P | PTE_U | PTE_W );  
+  if (r < 0)
+    panic("bruh");
 
-  // LAB 4: Your code here.
-
-  panic("pgfault not implemented");
+ 
 }
 
 //
@@ -52,9 +61,25 @@ static int
 duppage(envid_t envid, unsigned pn)
 {
   int r;
+  uint32_t src_envid = sys_getenvid();
+  if (src_envid < 0 )
+    return src_envid;
 
-  // LAB 4: Your code here.
-  panic("duppage not implemented");
+  uint32_t pte = uvpt[pn];
+  uint32_t perms = pte & 0xFFF;
+  if (perms & PTE_W)
+    perms |= PTE_COW;
+
+  r = sys_page_map(src_envid, (void*)(pn*PGSIZE), envid, (void*)(pn*PGSIZE), perms);
+  
+  if (r < 0)
+    return r;
+
+
+  uvpt[pn] |= perms;
+
+
+
   return 0;
 }
 
@@ -78,22 +103,32 @@ envid_t
 fork(void)
 {
   set_pgfault_handler(pgfault);
-  int env_id = sys_exofork();
-  if (env_id < 0) {     
-    return env_id;
+  int child_env_id = sys_exofork();
+  if (child_env_id < 0) {     
+    return child_env_id;
   }
-  int i;
+  uintptr_t va;
+  //For each writable or copy-on-write page in its 
+  //address space below UTOP, the parent calls duppage
+  //remap the page copy-on-write in its own address space
+  for(va = 0; va < UTOP - PGSIZE ; va += PGSIZE) {
+    //The PTE for page number N is stored in uvpt[N] 
+    uint32_t ptd = uvpd[PDX(va)];
+    uint32_t pte = uvpt[PGNUM(va)];
 
-  // struct PageInfo * current = UPAGES;
-  // struct PageInfo * end = UVPT; 
-  // // for (i = 0; i < thisenv.)
-  // for(current; current < end; current++){
-  //   if(page) {
-  //     PGADDR
-  //   }
-  // }
+    if (!(pte & PTE_P && ptd & PTE_P) ) // skip not present
+      continue;
+    
+    duppage(child_env_id, PGNUM(va)); 
 
-  // LAB 4: Your code here.
+  }
+      
+  //allocate exception stack in child.
+  sys_page_alloc(child_env_id, (void*) UXSTACKTOP - PGSIZE, PTE_P | PTE_W | PTE_U);
+  
+  sys_env_set_pgfault_upcall(child_env_id, pgfault);
+  sys_env_set_status(child_env_id, ENV_RUNNABLE);
+  return child_env_id;
 }
 
 // Challenge!
