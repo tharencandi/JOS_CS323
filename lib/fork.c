@@ -18,13 +18,16 @@ pgfault(struct UTrapframe *utf)
   uint32_t err = utf->utf_err;
   int r;
   addr = ROUNDDOWN(addr, PGSIZE);
+
   // Check that the faulting access was (1) a write, and (2) to a
   // copy-on-write page.  If not, panic.
   // Hint:
   //   Use the read-only page table mappings at uvpt
   //   (see <inc/memlayout.h>).
-  if (! (uvpt[PGNUM(addr)] & PTE_W && uvpt[PGNUM(addr)] & PTE_COW))
-    panic("page not writeable and copy-on-writable");
+  uint32_t pte = uvpt[PGNUM(addr)];
+
+  if (! (err == FEC_WR && pte & PTE_COW))
+    panic("page fault not write arror or page not copy-on-writable\n");
   
 
   // Allocate a new page, map it at a temporary location (PFTEMP),
@@ -66,18 +69,27 @@ duppage(envid_t envid, unsigned pn)
     return src_envid;
 
   uint32_t pte = uvpt[pn];
-  uint32_t perms = pte & 0xFFF;
-  if (perms & PTE_W)
-    perms |= PTE_COW;
+  uint32_t perms = PTE_U| PTE_P;
 
+  if (uvpt[pn] & PTE_W || uvpt[pn] & PTE_COW)
+    perms |= PTE_COW;
+  
+
+  cprintf("p pid: %d\n t pid: %d\n", src_envid, envid);
+
+  // map target/child
   r = sys_page_map(src_envid, (void*)(pn*PGSIZE), envid, (void*)(pn*PGSIZE), perms);
   
-  if (r < 0)
+  if (r < 0) {
     return r;
+  }
+  
+  // remap self
+  r = sys_page_map(src_envid, (void*)(pn*PGSIZE), src_envid, (void*)(pn*PGSIZE), perms);
 
-
-  uvpt[pn] |= perms;
-
+  if (r < 0) {
+    return r;
+  }
 
 
   return 0;
@@ -104,6 +116,13 @@ fork(void)
 {
   set_pgfault_handler(pgfault);
   int child_env_id = sys_exofork();
+
+  if (child_env_id == 0) {
+		// panic("child");
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+
   if (child_env_id < 0) {     
     return child_env_id;
   }
@@ -116,18 +135,24 @@ fork(void)
     uint32_t ptd = uvpd[PDX(va)];
     uint32_t pte = uvpt[PGNUM(va)];
 
-    if (!(pte & PTE_P && ptd & PTE_P) ) // skip not present
+    if (!(pte & (PTE_U) && pte & (PTE_P) && ptd & PTE_P) ) // skip not present
       continue;
     
-    duppage(child_env_id, PGNUM(va)); 
+    if (duppage(child_env_id, PGNUM(va)) < 0)
+      panic("duppage panic\n"); 
 
   }
       
   //allocate exception stack in child.
-  sys_page_alloc(child_env_id, (void*) UXSTACKTOP - PGSIZE, PTE_P | PTE_W | PTE_U);
+  if (sys_page_alloc(child_env_id, (void*) UXSTACKTOP - PGSIZE, PTE_P | PTE_W | PTE_U) <0)
+    panic("cant allocate uxstack in fork\n");
   
-  sys_env_set_pgfault_upcall(child_env_id, pgfault);
-  sys_env_set_status(child_env_id, ENV_RUNNABLE);
+  extern void _pgfault_upcall();
+  if (sys_env_set_pgfault_upcall(child_env_id, _pgfault_upcall))
+    panic("cant set upcall in fork\n");
+  
+  if (sys_env_set_status(child_env_id, ENV_RUNNABLE))
+    panic("cant set forked env to runnable\n");
   return child_env_id;
 }
 
