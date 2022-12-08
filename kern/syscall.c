@@ -42,6 +42,12 @@ sys_getenvid(void)
   return curenv->env_id;
 }
 
+static void
+sys_yield(void)
+{
+  sched_yield();
+}
+
 // Allocate a new environment.
 // Returns envid of new environment, or < 0 on error.  Errors are:
 //	-E_NO_FREE_ENV if no free environment is available.
@@ -59,6 +65,16 @@ sys_env_destroy(envid_t envid)
   else
     cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
   env_destroy(e);
+  return 0;
+}
+
+/*
+returns -1 if perm bad
+*/
+int check_perms(int perm) {
+  if (!(perm & PTE_U) || !(perm & PTE_P) || 
+  (perm & ~(PTE_U | PTE_P | PTE_AVAIL | PTE_W)))
+    return -1;
   return 0;
 }
 
@@ -107,7 +123,6 @@ static int sys_env_set_status(envid_t eid, int status ) {
     return -E_INVAL;
   
   e->env_status = status;
-
   return 0;
 }
 
@@ -172,26 +187,34 @@ sys_page_map(envid_t srcenvid, void *srcva,
   //   parameters for correctness.
   //   Use the third argument to page_lookup() to
   //   check the current permissions on the page.
-  if (!(perm & PTE_U) || !(perm & PTE_P) || (perm & ~(PTE_U | PTE_P | PTE_AVAIL | PTE_W)))
+  if (check_perms(perm) < 0)
     return -E_INVAL;
   
   struct Env *src;
   struct Env *dst;
-  if (envid2env(srcenvid, &src, 1) < 0)
+  if (envid2env(srcenvid, &src, 1) < 0) {
     return -E_BAD_ENV;
-  if (envid2env(dstenvid, &dst, 1) < 0)
+  }
+    
+  if (envid2env(dstenvid, &dst, 1) < 0) {
+    cprintf("bad dst: %d\n", dstenvid);
     return -E_BAD_ENV;
+  }
+    
   
   if ((uintptr_t)srcva >= UTOP || (uintptr_t)srcva % PGSIZE != 0 
     || (uintptr_t)dstva >= UTOP || (uintptr_t)dstva % PGSIZE != 0 ) 
     return -E_INVAL;
   pte_t *srcpte;
   struct PageInfo * srcpage = page_lookup(src->env_pgdir, srcva, &srcpte);
-  if (srcpage == NULL)
+  if (srcpage == NULL) {
     return -E_INVAL;
-
-  if ((perm & PTE_W) && !(*srcpte & PTE_W))
+  }
+  if ((perm & PTE_W) && !(*srcpte & PTE_W)) {
+    
     return -E_INVAL;
+  }
+    
   
   return page_insert(dst->env_pgdir, srcpage, dstva, perm);
 }
@@ -240,6 +263,147 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
   return 0;
 }
 
+
+// Try to send 'value' to the target env 'envid'.
+// If srcva < UTOP, then also send page currently mapped at 'srcva',
+// so that receiver gets a duplicate mapping of the same page.
+//
+// The send fails with a return value of -E_IPC_NOT_RECV if the
+// target is not blocked, waiting for an IPC.
+//
+// The send also can fail for the other reasons listed below.
+//
+// Otherwise, the send succeeds, and the target's ipc fields are
+// updated as follows:
+//    env_ipc_recving is set to 0 to block future sends;
+//    env_ipc_from is set to the sending envid;
+//    env_ipc_value is set to the 'value' parameter;
+//    env_ipc_perm is set to 'perm' if a page was transferred, 0 otherwise.
+// The target environment is marked runnable again, returning 0
+// from the paused sys_ipc_recv system call.  (Hint: does the
+// sys_ipc_recv function ever actually return?)
+//
+// If the sender wants to send a page but the receiver isn't asking for one,
+// then no page mapping is transferred, but no error occurs.
+// The ipc only happens when no errors occur.
+//
+// Returns 0 on success, < 0 on error.
+// Errors are:
+//	-E_BAD_ENV if environment envid doesn't currently exist.
+//		(No need to check permissions.)
+//	-E_IPC_NOT_RECV if envid is not currently blocked in sys_ipc_recv,
+//		or another environment managed to send first.
+//	-E_INVAL if srcva < UTOP but srcva is not page-aligned.
+//	-E_INVAL if srcva < UTOP and perm is inappropriate
+//		(see sys_page_alloc).
+//	-E_INVAL if srcva < UTOP but srcva is not mapped in the caller's
+//		address space.
+//	-E_INVAL if (perm & PTE_W), but srcva is read-only in the
+//		current environment's address space.
+//	-E_NO_MEM if there's not enough memory to map srcva in envid's
+//		address space.
+static int
+sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
+{
+  struct Env *e;
+  /*
+  When you call envid2env in these routines, 
+  you should set the checkperm flag to 0, meaning 
+  that any environment is allowed to send IPC messages 
+  to any other environment, and the kernel does no special
+  permission checking other than verifying that the 
+  target envid is valid.
+  */
+  if (envid2env(envid, &e, 0) < 0) {
+    return -E_BAD_ENV;
+  }
+  
+  if (!e->env_ipc_recving) {
+    return -E_IPC_NOT_RECV;
+  }
+    
+
+  envid_t cid = sys_getenvid();
+  //cprintf("try send from %d to %d\n", cid, envid);
+
+  // just value if va is above utop or receiver isnt asking for a page.
+  if ((uintptr_t)srcva >= UTOP || (uintptr_t)e->env_ipc_dstva >= UTOP) {
+    e->env_ipc_perm = 0;
+    e->env_ipc_value = value;
+    e->env_ipc_from = cid;
+    e->env_tf.tf_regs.reg_eax = 0; // because we make child runnable, ret code needs to be set already.
+    e->env_ipc_recving = 0;
+    e->env_status = ENV_RUNNABLE;
+    return 0;
+  }
+  
+  if ((uintptr_t)srcva % PGSIZE != 0 || check_perms(perm) < 0) {
+    return -E_INVAL;
+  }
+  int r;
+  
+  /*
+  CANT USE FUCKING MEM CPY SYS CALL CAUSE OF STUPID CHECK ON ITS DEST ENVID
+  
+  */
+
+  pte_t *srcpte;
+  struct PageInfo * srcpage = page_lookup(curenv->env_pgdir, srcva, &srcpte);
+  if (srcpage == NULL) {
+    return -E_INVAL;
+  }
+  if ((perm & PTE_W) && !(*srcpte & PTE_W)) {
+    
+    return -E_INVAL;
+  }
+    
+  
+  if ((r = page_insert(e->env_pgdir, srcpage, e->env_ipc_dstva, perm)) <0) {
+    return r;
+  }
+
+  e->env_ipc_perm = perm;
+  e->env_ipc_value = value;
+  e->env_ipc_from = cid;
+  e->env_ipc_recving = 0;
+  e->env_tf.tf_regs.reg_eax = 0; // because we make child runnable, ret code needs to be set already.
+  e->env_status = ENV_RUNNABLE;
+  return 0;
+
+}
+
+// Block until a value is ready.  Record that you want to receive
+// using the env_ipc_recving and env_ipc_dstva fields of struct Env,
+// mark yourself not runnable, and then give up the CPU.
+//
+// If 'dstva' is < UTOP, then you are willing to receive a page of data.
+// 'dstva' is the virtual address at which the sent page should be mapped.
+//
+// This function only returns on error, but the system call will eventually
+// return 0 on success.
+// Return < 0 on error.  Errors are:
+//	-E_INVAL if dstva < UTOP but dstva is not page-aligned.
+static int
+sys_ipc_recv(void *dstva)
+{
+ 
+  if ((uintptr_t)dstva < UTOP && (uintptr_t)dstva % PGSIZE != 0) {
+    return -E_INVAL;
+  }
+  curenv->env_ipc_recving = 1;
+  curenv->env_ipc_dstva = dstva;
+  curenv->env_status = ENV_NOT_RUNNABLE;
+  sys_yield();
+
+
+  return 0;
+}
+
+
+
+
+
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -275,6 +439,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_page_unmap(a1, (void*) a2);
     case SYS_env_set_pgfault_upcall:
       return sys_env_set_pgfault_upcall(a1, (void*) a2);
+    case SYS_ipc_recv:
+      return sys_ipc_recv((void*) a1);
+    case SYS_ipc_try_send:
+      return sys_ipc_try_send(a1, a2, (void*) a3, a4);
     default:
       return -E_INVAL; 
 

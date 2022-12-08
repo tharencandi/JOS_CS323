@@ -34,16 +34,16 @@ pgfault(struct UTrapframe *utf)
   // page to the old page's address.
   // Hint:
   //   You should make three system calls.
-  uint32_t envid = sys_getenvid();
+  uint32_t envid;
+  if ((envid = sys_getenvid()) < 0)
+    panic("bruh");
   
-  if (envid < 0)
+  if ((r = sys_page_alloc(envid, (void*) PFTEMP,  PTE_P | PTE_U | PTE_W)) < 0)
     panic("bruh");
-  r = sys_page_alloc(envid, (void*) PFTEMP,  PTE_P | PTE_U | PTE_W);
-  if (r < 0)
-    panic("bruh");
+  
   memcpy((void*) PFTEMP, addr, PGSIZE);
-  r = sys_page_map(envid,(void*) PFTEMP, envid, addr, PTE_P | PTE_U | PTE_W );  
-  if (r < 0)
+  
+  if ((r = sys_page_map(envid,(void*) PFTEMP, envid, addr, PTE_P | PTE_U | PTE_W )) < 0)
     panic("bruh");
 
  
@@ -109,7 +109,7 @@ fork(void)
   set_pgfault_handler(pgfault);
   int child_env_id;
 
-  if ((child_env_id = sys_exofork()) <0)
+  if ((child_env_id = sys_exofork()) < 0 )
     return child_env_id;
 
   if (child_env_id == 0) {
@@ -127,11 +127,11 @@ fork(void)
     //The PTE for page number N is stored in uvpt[N] 
     //ptd = uvpd[PDX(va)];
     //pte = uvpt[PGNUM(va)];
-    if (!(uvpd[PDX(va)] & PTE_P) || !(uvpt[PGNUM(va)] & PTE_P) || !(uvpt[PGNUM(va)] & PTE_U)) {
-      continue;
+    if (!(!(uvpd[PDX(va)] & PTE_P) || !(uvpt[PGNUM(va)] & PTE_P) || !(uvpt[PGNUM(va)] & PTE_U))) {
+       duppage(child_env_id, PGNUM(va)); 
+         
 		}
-    if (duppage(child_env_id, PGNUM(va))  < 0)
-      panic("duppage panic\n"); 
+   
 
   }
 

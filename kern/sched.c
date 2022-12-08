@@ -29,21 +29,6 @@ void sched_yield(void)
   // no runnable environments, simply drop through to the code
   // below to halt the cpu.
 
-  // LAB 4: Your code here.
-  /*
-  
-  idle = find_runnable_env(thiscpu->cpu_env++, &envs[NENV]);
-
-  if (idle == NULL)
-  {
-    idle = find_runnable_env(&envs[0], thiscpu->cpu_env);
-  }
-
-  if (idle == NULL && (thiscpu->cpu_env->env_status == ENV_RUNNING || thiscpu->cpu_env->env_status == ENV_RUNNABLE))
-  {
-    idle = thiscpu->cpu_env;
-  }
-  */
     
   int i = cpunum() + 1; // start from next environment so the last iterated is current env.
   int count;
@@ -67,19 +52,6 @@ void sched_yield(void)
 
   sched_halt();
   }
-
-struct Env * find_runnable_env(struct Env * start, struct Env * end) {
-  struct Env * current_env = start;
-  while (current_env < end)
-  {
-    if (current_env->env_status == ENV_RUNNABLE)
-    {
-      return current_env;
-    }
-    current_env++;
-  }
-  return NULL;
-}
 
 // Halt this CPU when there is nothing to do. Wait until the
 // timer interrupt wakes it up. This function never returns.
