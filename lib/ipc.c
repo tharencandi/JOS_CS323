@@ -60,6 +60,7 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
       break;
     else if (r != -E_IPC_NOT_RECV)
       panic("error other than -E_IPC_NOT_RECV. Error is: %d", r);
+    sys_yield();
   }
 
   return;

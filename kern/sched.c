@@ -30,7 +30,7 @@ void sched_yield(void)
   // below to halt the cpu.
 
     
-  int i = cpunum() + 1; // start from next environment so the last iterated is current env.
+  int i = (curenv != NULL) ? (ENVX(curenv->env_id) + 1): 0; // start from next environment so the last iterated is current env.
   int count;
   struct Env *e;
   for(count = 0; count < NENV; count ++) {
@@ -43,7 +43,7 @@ void sched_yield(void)
     i++;
   } 
 
-  if (thiscpu->cpu_env != NULL && thiscpu->cpu_env->env_status == ENV_RUNNING) {
+  if (idle == NULL && thiscpu->cpu_env != NULL && thiscpu->cpu_env->env_status == ENV_RUNNING) {
     idle = thiscpu->cpu_env;
   }
   
