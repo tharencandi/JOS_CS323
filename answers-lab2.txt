@@ -1,0 +1,50 @@
+# Question 1: Assuming that the following JOS kernel code is correct, what type should variable x have, uintptr_t or physaddr_t?
+x should be of type uintptr_t
+X can be casted to a character pointer and dereferenced, therefore it can’t be a physaddr_t. Every pointer in a C program is a virtual address and never a physical address. 
+
+# Question 2: What entries (rows) in the page directory have been filled in at this point? What addresses do they map and where do they point? In other words, fill out this table as much as possible:
+| Entry | Base Virtual Address  | Points to (logically)                     |
+| ------| --------------------  | ----------------------------------------- |
+| 1023  | 0xFFC00000            | Page table for top 4MB of phys memory     |
+| 1022  | FF800000              |                                           |
+| ..    | ..                    | ..                                        |
+| 960   | KERNBASE:  0xf0000000 | kern base to kernbase +4MB                |
+| 959   | 0xEFC00000            | MMIOLIM to KERNBASE                       |
+| 956   | UPAGES 0xef000000     | page struct array                         |
+|   2   | 0x00800000 (UTEXT)    | 4mb of program data and heap              |
+|   1   | 0x00400000 (UTEMP)    | Temporary page mappings (UTEMP and PTEMP) |
+|   0   | 0x00000000            | Empty memory.                             |
+
+## Question 3: We have placed the kernel and user environment in the same address space. Why will user programs not be able to read or write the kernel’s memory? What specific mechanisms protect the kernel memory?
+The page table entries of the kernel are not flagged with PTE_U. If the CPU doesn’t run in privilege level, it can’t access any entries which aren’t flagged with PTE_U.
+
+## Question 4: What is the maximum amount of physical memory that this operating system can support? Why?
+32 bit architecture supports 2^32 (4GB) of physical memory. The paging we have set up can also support this amount of memory. A page directory has 1024 entries, each 4MB -> 1024*4MB = 4GB.
+
+## Question 5: How much space overhead is there for managing memory, if we actually had the maximum amount of physical memory? How is this overhead broken down?
+Managing memory requires the following datastructures:
+1. page struct array: sizeof(pageInfo) * npages =   (2b + 4b)  * ((4GB -   / 4kb) = (6) * (1 000 000) = 6 000 000 = 6MB
+2. kernpagedir = 4KB	
+3. Potentially 1024 x 4KB page tables = 4MB.
+
+6MB +4KB + 4MB =   10.00400 megabytes
+
+## Question 6: Revisit the page table setup in kern/entry.S and kern/entrypgdir.c. Immediately after we turn on paging, EIP is still a low number (a little over 1MB). At what point do we transition to running at an EIP above KERNBASE? What makes it possible for us to continue executing at a low EIP between when we enable paging and when we begin running at an EIP above KERNBASE? Why is this transition necessary?
+
+At what point do we transition to running at an EIP above KERNBASE?
+jump to the label relocated, which is above kernbase, see this code snippet:
+```
+# Now paging is enabled, but we're still running at a low EIP
+# (why is this okay?).  Jump up above KERNBASE before entering
+# C code.
+mov	$relocated, %eax
+jmp	*%eax
+```
+
+What makes it possible to continue executing at a low EIP?
+There is a second mapping which ensures the low eip still works until the transition completes. 
+```
+// virtual addresses [0, 4MB) to physical addresses [0, 4MB); this
+// region is critical for a few instructions in entry.S and then we
+// never use it again.”
+```

@@ -7,11 +7,12 @@
 
 void sched_halt(void);
 
+struct Env * find_runnable_env(struct Env * start, struct Env * end);
+
 // Choose a user environment to run and run it.
-void
-sched_yield(void)
+void sched_yield(void)
 {
-  struct Env *idle;
+  struct Env *idle = NULL;
 
   // Implement simple round-robin scheduling.
   //
@@ -28,23 +29,41 @@ sched_yield(void)
   // no runnable environments, simply drop through to the code
   // below to halt the cpu.
 
-  // LAB 4: Your code here.
+    
+  int i = (curenv != NULL) ? (ENVX(curenv->env_id) + 1): 0; // start from next environment so the last iterated is current env.
+  int count;
+  struct Env *e;
+  for(count = 0; count < NENV; count ++) {
+    e = &envs[i%NENV];
 
-  // sched_halt never returns
+    if (e->env_status == ENV_RUNNABLE) {
+      idle = e;
+      break;
+    }
+    i++;
+  } 
+
+  if (idle == NULL && thiscpu->cpu_env != NULL && thiscpu->cpu_env->env_status == ENV_RUNNING) {
+    idle = thiscpu->cpu_env;
+  }
+  
+  if (idle != NULL)
+    env_run(idle);
+
   sched_halt();
-}
+  }
 
 // Halt this CPU when there is nothing to do. Wait until the
 // timer interrupt wakes it up. This function never returns.
 //
-void
-sched_halt(void)
+void sched_halt(void)
 {
   int i;
 
   // For debugging and testing purposes, if there are no runnable
   // environments in the system, then drop into the kernel monitor.
-  for (i = 0; i < NENV; i++) {
+  for (i = 0; i < NENV; i++)
+  {
     if ((envs[i].env_status == ENV_RUNNABLE ||
          envs[i].env_status == ENV_RUNNING ||
          envs[i].env_status == ENV_DYING))

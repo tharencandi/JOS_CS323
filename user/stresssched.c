@@ -8,7 +8,6 @@ umain(int argc, char **argv)
   int i, j;
   int seen;
   envid_t parent = sys_getenvid();
-
   // Fork several environments
   for (i = 0; i < 20; i++)
     if (fork() == 0)

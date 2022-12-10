@@ -46,11 +46,79 @@
 
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
+ * every trap calls _alltrap which eventually calls trap() with the correc trapframe.
+ *
  */
+
+/* processer defined*/
+TRAPHANDLER_NOEC(t_divide,T_DIVIDE);
+TRAPHANDLER_NOEC(t_debug,T_DEBUG);
+TRAPHANDLER_NOEC(t_nmi,T_NMI);
+TRAPHANDLER_NOEC(t_brkpt,T_BRKPT);
+TRAPHANDLER_NOEC(t_oflow, T_OFLOW);
+TRAPHANDLER_NOEC(t_bound, T_BOUND);
+TRAPHANDLER_NOEC(t_illop, T_ILLOP);
+TRAPHANDLER_NOEC(t_device, T_DEVICE);
+TRAPHANDLER(t_dblflt, T_DBLFLT);
+
+TRAPHANDLER(t_tss, T_TSS);
+TRAPHANDLER(t_segnp, T_SEGNP);
+TRAPHANDLER(t_stack, T_STACK);
+TRAPHANDLER(t_gpflt, T_GPFLT);
+TRAPHANDLER(t_pgflt, T_PGFLT);
+
+TRAPHANDLER_NOEC(t_fperr, T_FPERR);
+TRAPHANDLER(t_align, T_ALIGN);
+TRAPHANDLER_NOEC(t_mchk, T_MCHK);
+TRAPHANDLER_NOEC(t_simderr, T_SIMDERR);
+
+TRAPHANDLER_NOEC(t_syscall, T_SYSCALL);
+
+; TRAPHANDLER_NOEC(t_default, T_DEFAULT);
+
+
+/*IRQS*/
+TRAPHANDLER_NOEC(irq_timer, IRQ_OFFSET + IRQ_TIMER);
+TRAPHANDLER_NOEC(irq_kbd, IRQ_OFFSET + IRQ_KBD);
+TRAPHANDLER_NOEC(irq_3, IRQ_OFFSET + 3);
+TRAPHANDLER_NOEC(irq_serial, IRQ_OFFSET + IRQ_SERIAL);
+TRAPHANDLER_NOEC(irq_5, IRQ_OFFSET + 5);
+TRAPHANDLER_NOEC(irq_6, IRQ_OFFSET + 6);
+TRAPHANDLER_NOEC(irq_spurious, IRQ_OFFSET + IRQ_SPURIOUS);
+TRAPHANDLER_NOEC(irq_8, IRQ_OFFSET + 8);
+TRAPHANDLER_NOEC(irq_9, IRQ_OFFSET + 9);
+TRAPHANDLER_NOEC(irq_10, IRQ_OFFSET + 10);
+TRAPHANDLER_NOEC(irq_11, IRQ_OFFSET + 11);
+TRAPHANDLER_NOEC(irq_12, IRQ_OFFSET + 12);
+TRAPHANDLER_NOEC(irq_13, IRQ_OFFSET + 13);
+TRAPHANDLER_NOEC(irq_ide, IRQ_OFFSET + IRQ_IDE);
+
+/*TRAPHANDLER_NOEC(irq_error,  IRQ_OFFSET + IRQ_ERROR);*/
 
 
 
 /*
  * Lab 3: Your code here for _alltraps
+Consider using the pushal instruction; it fits nicely with the layout of the struct Trapframe.
  */
+ _alltraps:
+/*1. push values to make the stack look like a struct Trapfram*/
+        /* push ds*/
+        pushl %ds
+        /*push es */
+        pushl %es
+        /*push registers with pusha*/
+        pushal
+
+/*load GD_KD into %ds and %es*/
+        movw $(GD_KD), %ax
+        movw %ax, %ds
+        movw %ax, %es
+/*3. pushl %esp to pass a pointer to the Trapframe as an argument to trap()*/
+        pushl %esp
+/*4. call trap (can trap ever return?)*/
+        call trap
+
+
+
 

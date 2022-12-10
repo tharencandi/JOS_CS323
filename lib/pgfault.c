@@ -25,13 +25,19 @@ void
 set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 {
   int r;
+  int envid = sys_getenvid();
 
   if (_pgfault_handler == 0) {
     // First time through!
     // LAB 4: Your code here.
-    panic("set_pgfault_handler not implemented");
+    int ret = sys_page_alloc(envid, (void *) UXSTACKTOP - PGSIZE, PTE_U | PTE_W | PTE_P);
+    if (ret < 0)
+      panic("can't allocation uxstack.");
   }
 
   // Save handler pointer for assembly to call.
   _pgfault_handler = handler;
+  int ret = sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
+  if (ret < 0)
+    panic("cant set pgfault upcall ");
 }

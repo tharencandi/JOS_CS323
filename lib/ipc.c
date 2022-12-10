@@ -21,10 +21,20 @@
 //   a perfectly valid place to map a page.)
 int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
-{
-  // LAB 4: Your code here.
-  panic("ipc_recv not implemented");
-  return 0;
+{ 
+  //cprintf("%d is waiting to recv\n", sys_getenvid() );
+  if (pg == NULL) {
+    pg = (void * ) UTOP;
+  }
+    
+  
+  int r = sys_ipc_recv(pg);
+  if (from_env_store != NULL)
+    *from_env_store = (r >= 0) ? thisenv->env_ipc_from : 0;
+  if (perm_store != NULL)
+    *perm_store = (r >= 0) ? thisenv->env_ipc_perm : 0;
+
+  return (r >= 0) ? thisenv->env_ipc_value : r;
 }
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
@@ -38,8 +48,24 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
-  // LAB 4: Your code here.
-  panic("ipc_send not implemented");
+  //cprintf("sending to %d.....\n", to_env);
+  if (pg == NULL) {
+    perm = 0;
+    pg = (void*) UTOP;
+  }
+  int r;
+  while (1) {
+    r = sys_ipc_try_send(to_env, val, pg, perm);
+    if (r == 0)
+      break;
+    else if (r != -E_IPC_NOT_RECV)
+      panic("error other than -E_IPC_NOT_RECV. Error is: %d", r);
+    sys_yield();
+  }
+
+  return;
+ 
+  //panic("ipc_send not implemented");
 }
 
 // Find the first environment of the given type.  We'll use this to

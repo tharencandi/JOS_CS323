@@ -80,3 +80,17 @@ _pgfault_upcall:
 
 	// Return to re-execute the instruction that faulted.
 	// LAB 4: Your code here.
+	movl 0x28(%esp), %edx
+	subl $0x4, 0x30(%esp) 
+	movl 0x30(%esp), %eax 
+	movl %edx, (%eax)
+	addl $0x8, %esp
+
+	popal
+
+	addl $0x4, %esp #eip
+	popfl
+
+	popl %esp
+
+	ret
