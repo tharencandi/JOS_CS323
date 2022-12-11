@@ -238,13 +238,11 @@ serve_write(envid_t envid, struct Fsreq_write *req)
   struct OpenFile *o;
   int r = 0;
   if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0) {
-    cprintf("lookup error\n");
     return r; 
   }
     
   
   if ((r = file_write(o->o_file, (const void*)req->req_buf, req->req_n, o->o_fd->fd_offset)) < 0) {
-    cprintf("write error\n");
     return r;
   }
 

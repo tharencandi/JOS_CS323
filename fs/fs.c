@@ -185,17 +185,16 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
   int r;
   uint32_t *ppdiskbno;
-  if ((r = file_block_walk(f, filebno, &ppdiskbno, 1)) < 0) {
-    cprintf("blk walk error: %d\n", r);
+  if ((r = file_block_walk(f, filebno, &ppdiskbno, 1)) < 0) 
     return r;
-  }
+  
   
 
   if (*ppdiskbno == 0) {
-    char block_id;
-    if ((block_id = alloc_block()) < 0 ) 
+    uint32_t block_id;
+    if ((block_id = alloc_block()) < 0 )
       return block_id;
-        
+  
     *ppdiskbno = block_id;
   } 
 
