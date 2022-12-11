@@ -63,13 +63,12 @@ alloc_block(void)
   int i;
   for (i = 0; i < super->s_nblocks; i ++) {
     if (bitmap[i/32] & 1<<(i%32)) {
-      bitmap[i/32] &= 0<<(i%32); // make that bit a zero
+      bitmap[i/32] &= ~(1<<(i%32)); // make that bit a zero
       flush_block(&bitmap[i/32]);
       return i;
     }
       
   }
-
   return -E_NO_DISK;
 }
 
@@ -186,13 +185,17 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
   int r;
   uint32_t *ppdiskbno;
-  if ((r = file_block_walk(f, filebno, &ppdiskbno, 1)) < 0)
+  if ((r = file_block_walk(f, filebno, &ppdiskbno, 1)) < 0) {
+    cprintf("blk walk error: %d\n", r);
     return r;
+  }
+  
 
   if (*ppdiskbno == 0) {
     char block_id;
-      if ((block_id = alloc_block()) < 0 )
-        return block_id;
+    if ((block_id = alloc_block()) < 0 ) 
+      return block_id;
+        
     *ppdiskbno = block_id;
   } 
 

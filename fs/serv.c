@@ -237,11 +237,16 @@ serve_write(envid_t envid, struct Fsreq_write *req)
     cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
   struct OpenFile *o;
   int r = 0;
-  if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+  if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0) {
+    cprintf("lookup error\n");
     return r; 
+  }
+    
   
-  if ((r = file_write(o->o_file, (const void*)req->req_buf, req->req_n, o->o_fd->fd_offset)) < 0)
+  if ((r = file_write(o->o_file, (const void*)req->req_buf, req->req_n, o->o_fd->fd_offset)) < 0) {
+    cprintf("write error\n");
     return r;
+  }
 
   o->o_fd->fd_offset += r;
   return r;
