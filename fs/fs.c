@@ -64,6 +64,7 @@ alloc_block(void)
   for (i = 0; i < super->s_nblocks; i ++) {
     if (bitmap[i/32] & 1<<(i%32)) {
       bitmap[i/32] &= 0<<(i%32); // make that bit a zero
+      flush_block(&bitmap[i/32]);
       return i;
     }
       
@@ -153,8 +154,6 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
     return -E_INVAL;
 
   // indirect :
-
-
   //allocating if need be or error
   if (f->f_indirect == 0) {
     if (!alloc)
@@ -170,9 +169,7 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
   
   }
 
-  
   *ppdiskbno  = ((uint32_t*)diskaddr(f->f_indirect)) + (filebno-NDIRECT);
-
   return 0;
 }
 
@@ -191,15 +188,15 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
   uint32_t *ppdiskbno;
   if ((r = file_block_walk(f, filebno, &ppdiskbno, 1)) < 0)
     return r;
+
   if (*ppdiskbno == 0) {
-  char block_id;
-    if ((block_id = alloc_block()) < 0 )
-      return block_id;
-  *ppdiskbno = block_id;
-  *blk = diskaddr(block_id);
-  } else {
+    char block_id;
+      if ((block_id = alloc_block()) < 0 )
+        return block_id;
+    *ppdiskbno = block_id;
+  } 
+
   * blk = diskaddr(*ppdiskbno);
-  }
   return 0;
 }
 
