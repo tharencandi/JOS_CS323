@@ -71,8 +71,10 @@ duppage(envid_t envid, unsigned pn)
 
   // SHARE
   if (uvpt[pn] & PTE_SHARE) {
+    
     if ( (r = sys_page_map(c_id, va, envid, va, uvpt[pn] & PTE_SYSCALL)) < 0)
       return r;
+    return 0;
   }
 
   // COW AND OTHER

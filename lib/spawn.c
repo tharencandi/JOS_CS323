@@ -306,22 +306,20 @@ copy_shared_pages(envid_t child)
     It should loop through all page table entries in the current process (just like fork did), 
     copying any page mappings that have the PTE_SHARE bit set into the child process.
   */
-
   envid_t cid = sys_getenvid();
   uint32_t va;
   int r;
+
   for(va = 0; va < UTOP-PGSIZE ; va += PGSIZE) {
+     
+    if ((uvpd[PDX(va)] & PTE_P  ) && (uvpt[PGNUM(va)] & PTE_SHARE)) {
 
-    if (!(!(uvpd[PDX(va)] & PTE_P) || !(uvpt[PGNUM(va)] & PTE_P) || !(uvpt[PGNUM(va)] & PTE_U))) {
-
-        
-      if (uvpt[PDX(va)] & PTE_SHARE) {
-        cprintf("sharing: %p\n", va);
-        if ( (r = sys_page_map(cid, (void*)va, child, (void*)va, uvpt[PDX(va)] & PTE_SYSCALL)) < 0)
-          return r;
-      }
+      cprintf("sharing: %p\n", va);
+      if ( (r = sys_page_map(cid, (void*)va, child, (void*)va, uvpt[PGNUM(va)] & PTE_SYSCALL)) < 0)
+        return r;
+    }
          
-		}
+		
   }
 
   
