@@ -68,6 +68,15 @@ duppage(envid_t envid, unsigned pn)
 
 	void *va = (void*)(pn*PGSIZE);
 
+
+  // SHARE
+  if (uvpt[pn] & PTE_SHARE) {
+    if ( (r = sys_page_map(c_id, va, envid, va, uvpt[pn] & PTE_SYSCALL)) < 0)
+      return r;
+  }
+
+  // COW AND OTHER
+
   // map envid and cid envs w/ cow flag if cow or write
   uint16_t cow = 0;
 	if ( ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) ) {
